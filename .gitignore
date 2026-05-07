@@ -4,7 +4,7 @@
 # =============================================================
 .env
 .env.*
-!.env.example
+.env.example
 backend/.env.local
 frontend/users-asMicroG/.env.local
 frontend/admin-asMicroG/.env.local
