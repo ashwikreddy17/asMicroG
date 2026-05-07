@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f7f0; margin: 0; padding: 20px; }
+  .container { max-width: 600px; margin: auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,80,0,0.1); }
+  .header { background: linear-gradient(135deg, #2e7d32, #4caf50); padding: 32px; text-align: center; }
+  .header h1 { color: #fff; margin: 0; font-size: 24px; }
+  .header p { color: #c8e6c9; margin: 8px 0 0; }
+  .body { padding: 32px; }
+  .order-number { background: #e8f5e9; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 24px; }
+  .order-number span { font-size: 20px; font-weight: 700; color: #2e7d32; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #e8f5e9; color: #1b5e20; padding: 10px; text-align: left; }
+  td { padding: 10px; border-bottom: 1px solid #e8f5e9; }
+  .total-row td { font-weight: 700; color: #2e7d32; border-top: 2px solid #a5d6a7; }
+  .footer { background: #e8f5e9; padding: 20px; text-align: center; color: #4a6741; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Order Confirmed!</h1>
+    <p>Thank you for shopping with ASMICROG</p>
+  </div>
+  <div class="body">
+    <div class="order-number">
+      Order <span>#{{ order.order_number }}</span>
+    </div>
+    <p>Hi {{ order.user.first_name|default:order.user.username }},</p>
+    <p>Your order has been confirmed and is being processed.</p>
+    <table>
+      <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
+      {% for item in order.items.all %}
+      <tr>
+        <td>{{ item.product_name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>₹{{ item.subtotal }}</td>
+      </tr>
+      {% endfor %}
+      <tr><td colspan="2">Shipping</td><td>{% if order.shipping_amount == 0 %}FREE{% else %}₹{{ order.shipping_amount }}{% endif %}</td></tr>
+      {% if order.discount_amount > 0 %}
+      <tr><td colspan="2">Discount</td><td>-₹{{ order.discount_amount }}</td></tr>
+      {% endif %}
+      <tr class="total-row"><td colspan="2">Total</td><td>₹{{ order.final_amount }}</td></tr>
+    </table>
+  </div>
+  <div class="footer">
+    <p>ASMICROG &bull; Your Eco-Friendly Shopping Destination</p>
+  </div>
+</div>
+</body>
+</html>
