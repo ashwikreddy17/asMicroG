@@ -71,9 +71,9 @@ function TicketThread({ ticket, user, onBack, onUpdate }) {
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12, minHeight: 0, background: "#f9fdf9" }}>
         {/* Original description */}
-        <div style={{ padding: "12px 16px", borderRadius: "var(--r-lg)", background: "var(--bg)", maxWidth: "85%", alignSelf: "flex-start" }}>
+        <div style={{ padding: "12px 16px", borderRadius: "var(--r-lg)", background: "#fff", border: "1px solid var(--border-light)", maxWidth: "85%", alignSelf: "flex-start" }}>
           <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginBottom: 4 }}>Your initial message</p>
           <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>{ticket.description}</p>
         </div>
@@ -84,11 +84,12 @@ function TicketThread({ ticket, user, onBack, onUpdate }) {
             <div key={m.id} style={{ alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "80%" }}>
               <div style={{
                 padding: "10px 14px", borderRadius: "var(--r-lg)",
-                background: isMe ? "var(--primary)" : "var(--bg-card, white)",
-                color: isMe ? "white" : "var(--text-primary)",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                background: isMe ? "#dcf5dc" : "#fff",
+                color: "var(--text-primary)",
+                border: `1px solid ${isMe ? "rgba(46,125,50,0.2)" : "var(--border-light)"}`,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
               }}>
-                <p style={{ fontSize: "0.88rem", lineHeight: 1.5 }}>{m.message}</p>
+                <p style={{ fontSize: "0.88rem", lineHeight: 1.5, color: "var(--text-primary)" }}>{m.message}</p>
               </div>
               <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 3, textAlign: isMe ? "right" : "left" }}>
                 {isMe ? "You" : "Support Team"} · {new Date(m.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
@@ -169,7 +170,7 @@ function MyTickets({ user }) {
 
   if (selected) {
     return (
-      <div style={{ height: 520, display: "flex", flexDirection: "column" }} className="neu-raised" style2={{ borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+      <div style={{ height: 520, display: "flex", flexDirection: "column", borderRadius: "var(--r-xl)", overflow: "hidden" }} className="neu-raised">
         <TicketThread ticket={selected} user={user} onBack={() => setSelected(null)} onUpdate={load} />
       </div>
     );
@@ -269,18 +270,88 @@ function MyTickets({ user }) {
   );
 }
 
+// ── Ask-a-Question form ───────────────────────────────────────────
+function AskFaqForm({ user, onSubmitted }) {
+  const [question, setQuestion] = useState("");
+  const [category, setCategory] = useState("General");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!question.trim()) return;
+    setSubmitting(true);
+    try {
+      await api.post("/support/faqs/", { question: question.trim(), category });
+      toast.success("Question submitted! We'll answer it soon.");
+      setQuestion("");
+      setDone(true);
+      if (onSubmitted) onSubmitted();
+    } catch {
+      toast.error("Failed to submit question.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="neu-raised" style={{ padding: 20, marginTop: 20, borderRadius: "var(--r-xl)", borderLeft: "3px solid var(--primary)" }}>
+      <p style={{ fontWeight: 700, marginBottom: 12, fontSize: "0.95rem" }}>🙋 Ask a Question</p>
+      {done ? (
+        <div style={{ textAlign: "center", padding: "10px 0" }}>
+          <p style={{ color: "var(--primary)", fontWeight: 600 }}>✓ Question submitted!</p>
+          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 4 }}>Our team will answer it and publish it for everyone.</p>
+          <button onClick={() => setDone(false)} style={{ marginTop: 10, background: "none", border: "none", cursor: "pointer", color: "var(--primary)", fontWeight: 600, fontSize: "0.85rem" }}>Ask another →</button>
+        </div>
+      ) : (
+        <form onSubmit={submit}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {["General", "Orders", "Returns", "Payments", "Products"].map((c) => (
+              <button key={c} type="button" onClick={() => setCategory(c)}
+                style={{ padding: "3px 11px", borderRadius: "var(--r-full)", border: "1.5px solid", borderColor: category === c ? "var(--primary)" : "var(--border-light)", background: category === c ? "#e8f5e9" : "white", color: category === c ? "var(--primary)" : "var(--text-muted)", fontSize: "0.75rem", cursor: "pointer", fontWeight: category === c ? 700 : 400 }}>
+                {c}
+              </button>
+            ))}
+          </div>
+          <textarea className="input-neu" rows={2} placeholder="What would you like to know?" value={question} onChange={(e) => setQuestion(e.target.value)} style={{ resize: "none", marginBottom: 10 }} />
+          <button type="submit" disabled={submitting || !question.trim()} style={{ padding: "8px 20px", borderRadius: "var(--r-full)", border: "none", background: "var(--primary)", color: "white", cursor: "pointer", fontWeight: 700, fontSize: "0.85rem", opacity: !question.trim() ? 0.5 : 1 }}>
+            {submitting ? "Sending…" : "Submit Question"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────
 export default function SupportPage() {
   const user = useSelector((s) => s.auth.user);
   const [faqCat, setFaqCat] = useState("All");
   const [openFaq, setOpenFaq] = useState(null);
   const [search, setSearch] = useState("");
+  const [backendFaqs, setBackendFaqs] = useState([]);
 
-  const filtered = FAQS.filter((f) => {
+  const loadFaqs = () => {
+    api.get("/support/faqs/").then(({ data }) => setBackendFaqs(Array.isArray(data) ? data : [])).catch(() => {});
+  };
+
+  useEffect(() => { loadFaqs(); }, []);
+
+  // Merge backend (published, with answers) + static fallbacks
+  const allFaqs = [
+    ...backendFaqs.map((f) => ({ cat: f.category || "General", q: f.question, a: f.answer, count: f.ask_count })),
+    ...FAQS.filter((sf) => !backendFaqs.some((bf) => bf.question.toLowerCase().trim() === sf.q.toLowerCase().trim())),
+  ];
+
+  const allCats = ["All", ...Array.from(new Set(allFaqs.map((f) => f.cat)))];
+
+  const filtered = allFaqs.filter((f) => {
     const matchCat = faqCat === "All" || f.cat === faqCat;
-    const matchSearch = !search || f.q.toLowerCase().includes(search.toLowerCase()) || f.a.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || f.q.toLowerCase().includes(search.toLowerCase()) || (f.a || "").toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
-  });
+  }).sort((a, b) => (b.count || 0) - (a.count || 0));
 
   return (
     <main className="main-content">
@@ -323,7 +394,7 @@ export default function SupportPage() {
           <div>
             <h2 style={{ fontSize: "1.2rem", fontWeight: 800, marginBottom: 16 }}>Frequently Asked Questions</h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-              {FAQ_CATS.map((c) => (
+              {allCats.map((c) => (
                 <button key={c} onClick={() => { setFaqCat(c); setOpenFaq(null); }}
                   className="btn-neu"
                   style={{ padding: "5px 14px", borderRadius: "var(--r-full)", fontSize: "0.8rem", background: faqCat === c ? "var(--primary)" : undefined, color: faqCat === c ? "white" : undefined, fontWeight: faqCat === c ? 700 : 400 }}>
@@ -340,21 +411,33 @@ export default function SupportPage() {
                     const key = `${f.cat}-${i}`;
                     const isOpen = openFaq === key;
                     return (
-                      <div key={key} style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--border)" : "none" }}>
+                      <div key={key} style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--border-light)" : "none" }}>
                         <button onClick={() => setOpenFaq(isOpen ? null : key)}
-                          style={{ width: "100%", background: isOpen ? "var(--primary-bg, #f0f9f0)" : "transparent", border: "none", cursor: "pointer", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, textAlign: "left" }}>
-                          <span style={{ fontWeight: 600, fontSize: "0.88rem", color: "var(--text-primary)" }}>{f.q}</span>
-                          <span style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, background: isOpen ? "var(--primary)" : "var(--bg)", color: isOpen ? "white" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem", fontWeight: 700, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+                          style={{ width: "100%", background: isOpen ? "#f0f9f0" : "transparent", border: "none", cursor: "pointer", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, textAlign: "left" }}>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontWeight: 600, fontSize: "0.88rem", color: "var(--text-primary)", display: "block" }}>{f.q}</span>
+                            {f.count > 1 && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Asked {f.count} times</span>}
+                          </div>
+                          <span style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, background: isOpen ? "var(--primary)" : "var(--bg-subtle)", color: isOpen ? "white" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem", fontWeight: 700 }}>
                             {isOpen ? "−" : "+"}
                           </span>
                         </button>
-                        {isOpen && <div style={{ padding: "0 18px 14px", color: "var(--text-secondary)", fontSize: "0.865rem", lineHeight: 1.8 }}>{f.a}</div>}
+                        {isOpen && (
+                          <div style={{ padding: "0 18px 14px" }}>
+                            {f.a ? (
+                              <p style={{ color: "var(--text-secondary)", fontSize: "0.865rem", lineHeight: 1.8 }}>{f.a}</p>
+                            ) : (
+                              <p style={{ color: "var(--text-muted)", fontSize: "0.82rem", fontStyle: "italic" }}>⏳ Our team is reviewing this question. Answer coming soon.</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               )
             }
+            <AskFaqForm user={user} onSubmitted={loadFaqs} />
           </div>
 
           {/* Ticket system or login prompt */}

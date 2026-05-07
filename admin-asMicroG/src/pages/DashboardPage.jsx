@@ -62,7 +62,7 @@ export default function DashboardPage() {
   if (loading) return <div style={{ display: "flex", justifyContent: "center", padding: 64 }}><div className="spinner-admin" /></div>;
 
   const salesChartData = {
-    labels: salesData.map((d) => new Date(d.day).toLocaleDateString("en-IN", { day: "numeric", month: "short" })),
+    labels: salesData.map((d) => d.date),
     datasets: [{
       label: "Revenue (₹)",
       data: salesData.map((d) => parseFloat(d.revenue || 0)),
@@ -125,8 +125,8 @@ export default function DashboardPage() {
             <tbody>
               {topProducts.map((p, i) => (
                 <tr key={i}>
-                  <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.product__name}</td>
-                  <td>{p.total_sold}</td>
+                  <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</td>
+                  <td>{p.units_sold}</td>
                   <td>₹{parseFloat(p.revenue || 0).toLocaleString("en-IN")}</td>
                 </tr>
               ))}

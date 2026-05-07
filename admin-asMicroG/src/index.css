@@ -1,5 +1,8 @@
 /* ASMICROG Admin – Dark Green Neumorphism Theme */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+input, textarea, select, [contenteditable] { user-select: text; cursor: text; }
+a, button, [role="button"], label[for] { cursor: pointer; }
+p, h1, h2, h3, h4, h5, h6, span, div, li { cursor: default; }
 
 :root {
   --bg: #1a2b1a;

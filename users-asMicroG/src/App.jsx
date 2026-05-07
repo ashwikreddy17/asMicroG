@@ -2,7 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProfile } from "./store/authSlice";
-import { fetchCart } from "./store/cartSlice";
+import { fetchCart, fetchShippingSettings } from "./store/cartSlice";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import BottomNav from "./components/layout/BottomNav";
@@ -18,6 +18,7 @@ const OrderDetailPage = lazy(() => import("./pages/OrderDetailPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const WishlistPage = lazy(() => import("./pages/WishlistPage"));
 const SupportPage = lazy(() => import("./pages/SupportPage"));
+const CartPage = lazy(() => import("./pages/CartPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function ScrollToTop() {
@@ -35,12 +36,12 @@ export default function App() {
   const initialized = useSelector((s) => s.auth.initialized);
 
   useEffect(() => {
+    dispatch(fetchShippingSettings());
     if (tokens?.access) {
       dispatch(fetchProfile());
       dispatch(fetchCart());
     } else {
       dispatch(fetchCart());
-      // Mark auth as initialized even without tokens
       import("./store/authSlice").then(({ setInitialized }) => dispatch(setInitialized()));
     }
   }, []);
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/support" element={<SupportPage />} />
+            <Route path="/cart" element={<CartPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

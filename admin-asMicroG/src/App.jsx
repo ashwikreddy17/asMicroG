@@ -12,6 +12,7 @@ import SupportPage from "./pages/SupportPage";
 import BannersPage from "./pages/BannersPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import CategoriesPage from "./pages/CategoriesPage";
+import SettingsPage from "./pages/SettingsPage";
 
 function RequireAuth({ children }) {
   const tokens = JSON.parse(localStorage.getItem("admin_tokens") || "null");
@@ -44,6 +45,7 @@ export default function App() {
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="/banners" element={<BannersPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AdminLayout>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
-import { selectCart } from "../store/cartSlice";
+import { selectCart, selectShipping } from "../store/cartSlice";
 import { createOrder, validateCoupon, createRazorpayOrder, verifyRazorpayPayment } from "../services/orderService";
 import api from "../services/api";
 import Button from "../components/ui/Button";
@@ -32,6 +32,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const user = useSelector((s) => s.auth.user);
   const cart = useSelector(selectCart);
+  const shippingSettings = useSelector(selectShipping);
   const [step, setStep] = useState(0);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -65,7 +66,7 @@ export default function CheckoutPage() {
 
   const subtotal = parseFloat(cart?.total || 0);
   const discountAmt = discount ? parseFloat(discount.discount) : 0;
-  const shipping = subtotal - discountAmt >= 500 ? 0 : 50;
+  const shipping = subtotal - discountAmt >= shippingSettings.free_shipping_threshold ? 0 : shippingSettings.shipping_cost;
   const total = Math.max(0, subtotal - discountAmt + shipping);
 
   const placeOrder = async () => {

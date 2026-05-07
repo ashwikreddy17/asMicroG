@@ -11,6 +11,7 @@ const navItems = [
   { label: "Banners", icon: "🖼", to: "/banners" },
   { label: "Support", icon: "💬", to: "/support" },
   { label: "Analytics", icon: "📈", to: "/analytics" },
+  { label: "Settings", icon: "⚙️", to: "/settings" },
 ];
 
 export default function Sidebar({ open, onClose }) {

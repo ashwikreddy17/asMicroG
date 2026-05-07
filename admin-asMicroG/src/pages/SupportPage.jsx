@@ -103,23 +103,24 @@ export default function SupportPage() {
               </div>
               <button className="btn-admin" style={{ padding: 6 }} onClick={() => setSelected(null)}>✕</button>
             </div>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginBottom: 16, padding: "12px", background: "var(--bg)", borderRadius: "var(--r-md)" }}>
+            <div style={{ fontSize: "0.88rem", color: "var(--text-secondary)", marginBottom: 16, padding: "12px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: "var(--r-md)" }}>
               {selected.description}
-            </p>
+            </div>
 
             {/* Messages */}
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
               {selected.messages?.map((m) => (
                 <div key={m.id} style={{
                   padding: "10px 14px", borderRadius: "var(--r-md)",
-                  background: m.is_staff_reply ? "rgba(76,175,80,0.1)" : "var(--bg)",
+                  background: m.is_staff_reply ? "rgba(76,175,80,0.15)" : "rgba(255,255,255,0.06)",
                   alignSelf: m.is_staff_reply ? "flex-end" : "flex-start",
-                  maxWidth: "85%", borderLeft: m.is_staff_reply ? "3px solid var(--primary)" : "none",
+                  maxWidth: "85%",
+                  border: `1px solid ${m.is_staff_reply ? "rgba(76,175,80,0.25)" : "rgba(255,255,255,0.08)"}`,
                 }}>
                   <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 4 }}>
                     {m.is_staff_reply ? "You (Staff)" : m.sender_name}
                   </p>
-                  <p style={{ fontSize: "0.88rem" }}>{m.message}</p>
+                  <p style={{ fontSize: "0.88rem", color: "var(--text-primary)" }}>{m.message}</p>
                 </div>
               ))}
             </div>

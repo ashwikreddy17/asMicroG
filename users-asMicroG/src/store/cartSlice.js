@@ -6,6 +6,11 @@ export const fetchCart = createAsyncThunk("cart/fetch", async () => {
   return data;
 });
 
+export const fetchShippingSettings = createAsyncThunk("cart/shippingSettings", async () => {
+  const { data } = await api.get("/orders/shipping-settings/");
+  return data;
+});
+
 export const addToCart = createAsyncThunk("cart/add", async (payload, { rejectWithValue }) => {
   try {
     const { data } = await api.post("/cart/add/", payload);
@@ -21,7 +26,7 @@ export const updateCartItem = createAsyncThunk("cart/update", async ({ itemId, q
 });
 
 export const removeCartItem = createAsyncThunk("cart/remove", async (itemId) => {
-  const { data } = await api.delete(`/cart/items/${itemId}/remove/`);
+  const { data } = await api.patch(`/cart/items/${itemId}/`, { quantity: 0 });
   return data;
 });
 
@@ -37,6 +42,7 @@ const cartSlice = createSlice({
     loading: false,
     error: null,
     drawerOpen: false,
+    shipping: { free_shipping_threshold: 500, shipping_cost: 50, first_order_free: false },
   },
   reducers: {
     toggleDrawer(state) { state.drawerOpen = !state.drawerOpen; },
@@ -54,6 +60,10 @@ const cartSlice = createSlice({
         .addCase(thunk.fulfilled, setData)
         .addCase(thunk.rejected, setError);
     });
+
+    builder.addCase(fetchShippingSettings.fulfilled, (state, action) => {
+      state.shipping = action.payload;
+    });
   },
 });
 
@@ -61,4 +71,5 @@ export const { toggleDrawer, closeDrawer, openDrawer } = cartSlice.actions;
 export const selectCart = (state) => state.cart.data;
 export const selectCartCount = (state) => state.cart.data?.item_count || 0;
 export const selectCartTotal = (state) => state.cart.data?.total || "0.00";
+export const selectShipping = (state) => state.cart.shipping;
 export default cartSlice.reducer;

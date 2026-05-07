@@ -1,31 +1,61 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
-import { closeDrawer, selectCart, fetchCart, updateCartItem, removeCartItem } from "../../store/cartSlice";
+import { closeDrawer, selectCart, selectShipping, fetchCart, updateCartItem, removeCartItem } from "../../store/cartSlice";
 import Spinner from "../ui/Spinner";
 import toast from "react-hot-toast";
 
 function CartItem({ item }) {
   const dispatch = useDispatch();
+  const [busy, setBusy] = useState(false);
   const img = item.product_detail?.primary_image?.image || "/placeholder.png";
 
   const handleQty = async (qty) => {
-    if (qty < 1) {
-      await dispatch(removeCartItem(item.id));
-    } else {
-      await dispatch(updateCartItem({ itemId: item.id, quantity: qty }));
+    if (busy) return;
+    setBusy(true);
+    try {
+      let result;
+      if (qty < 1) {
+        result = await dispatch(removeCartItem(item.id));
+        if (removeCartItem.rejected.match(result)) throw new Error();
+        toast.success("Item removed from cart");
+      } else {
+        result = await dispatch(updateCartItem({ itemId: item.id, quantity: qty }));
+        if (updateCartItem.rejected.match(result)) throw new Error();
+      }
+    } catch {
+      toast.error("Could not update cart. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await dispatch(removeCartItem(item.id));
+      if (removeCartItem.rejected.match(result)) throw new Error();
+      toast.success("Item removed from cart");
+    } catch {
+      toast.error("Could not remove item. Please try again.");
+      setBusy(false);
     }
   };
 
   return (
     <div style={{
       display: "flex", gap: 12, padding: "12px 0",
-      borderBottom: "1px solid rgba(46,125,50,0.1)",
+      borderBottom: "1px solid var(--border-light)",
+      opacity: busy ? 0.55 : 1,
+      transition: "opacity 0.2s",
+      pointerEvents: busy ? "none" : "auto",
     }}>
-      <img src={img} alt={item.product_detail?.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+      <img src={img} alt={item.product_detail?.name}
+        style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: 2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+        <p style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: 2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", color: "var(--text-primary)" }}>
           {item.product_detail?.name}
         </p>
         {item.variant_detail && (
@@ -34,11 +64,35 @@ function CartItem({ item }) {
           </p>
         )}
         <p className="price" style={{ fontSize: "1rem" }}>₹{item.subtotal}</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-          <button onClick={() => handleQty(item.quantity - 1)} className="btn-neu" style={{ padding: "2px 10px", borderRadius: 8, fontSize: "1.1rem" }}>−</button>
-          <span style={{ fontWeight: 600, minWidth: 20, textAlign: "center" }}>{item.quantity}</span>
-          <button onClick={() => handleQty(item.quantity + 1)} className="btn-neu" style={{ padding: "2px 10px", borderRadius: 8, fontSize: "1.1rem" }}>+</button>
-          <button onClick={() => dispatch(removeCartItem(item.id))} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error)", fontSize: 18 }} aria-label="Remove">🗑</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 8 }}>
+          {/* Qty controls */}
+          <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--border-light)", borderRadius: 10, overflow: "hidden" }}>
+            <button
+              onClick={() => handleQty(item.quantity - 1)}
+              style={{ padding: "4px 12px", background: "none", border: "none", cursor: "pointer", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}
+              title="Decrease quantity"
+            >
+              −
+            </button>
+            <span style={{ padding: "4px 10px", fontWeight: 700, fontSize: "0.95rem", borderLeft: "1.5px solid var(--border-light)", borderRight: "1.5px solid var(--border-light)", color: "var(--text-primary)" }}>
+              {busy ? "…" : item.quantity}
+            </span>
+            <button
+              onClick={() => handleQty(item.quantity + 1)}
+              style={{ padding: "4px 12px", background: "none", border: "none", cursor: "pointer", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}
+            >
+              +
+            </button>
+          </div>
+          {/* Delete */}
+          <button
+            onClick={handleRemove}
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error)", fontSize: 16, padding: "4px 6px", borderRadius: 6, display: "flex", alignItems: "center" }}
+            aria-label="Remove item"
+            title="Remove from cart"
+          >
+            🗑
+          </button>
         </div>
       </div>
     </div>
@@ -50,10 +104,13 @@ export default function CartDrawer() {
   const drawerOpen = useSelector((s) => s.cart.drawerOpen);
   const cart = useSelector(selectCart);
   const loading = useSelector((s) => s.cart.loading);
+  const shippingSettings = useSelector(selectShipping);
 
   useEffect(() => {
     if (drawerOpen && !cart) dispatch(fetchCart());
   }, [drawerOpen]);
+
+  const initialLoading = loading && !cart;
 
   return (
     <AnimatePresence>
@@ -82,49 +139,77 @@ export default function CartDrawer() {
             role="dialog"
           >
             {/* Header */}
-            <div style={{ padding: "20px 20px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(46,125,50,0.1)" }}>
-              <h2 style={{ margin: 0, fontSize: "1.25rem" }}>
-                Shopping Cart {cart?.item_count > 0 && <span className="badge badge-primary" style={{ fontSize: "0.8rem", marginLeft: 8 }}>{cart.item_count}</span>}
+            <div style={{ padding: "20px 20px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-light)" }}>
+              <h2 style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-primary)" }}>
+                Shopping Cart{" "}
+                {cart?.item_count > 0 && (
+                  <span className="badge badge-primary" style={{ fontSize: "0.8rem", marginLeft: 8 }}>{cart.item_count}</span>
+                )}
               </h2>
-              <button onClick={() => dispatch(closeDrawer())} className="btn-neu" style={{ padding: 8, borderRadius: "50%", width: 36, height: 36 }} aria-label="Close cart">✕</button>
+              <button
+                onClick={() => dispatch(closeDrawer())}
+                style={{ background: "none", border: "1.5px solid var(--border-light)", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", color: "var(--text-muted)" }}
+                aria-label="Close cart"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Items */}
             <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
-              {loading && <Spinner center />}
-              {!loading && (!cart?.items?.length) && (
+              {initialLoading && <Spinner center />}
+
+              {!initialLoading && !cart?.items?.length && (
                 <div style={{ textAlign: "center", padding: "48px 20px" }}>
                   <div style={{ fontSize: 56, marginBottom: 16 }}>🛒</div>
-                  <p style={{ color: "var(--text-muted)" }}>Your cart is empty</p>
-                  <Link to="/products" onClick={() => dispatch(closeDrawer())} className="btn-neu btn-primary" style={{ marginTop: 20, display: "inline-flex", borderRadius: "var(--r-full)" }}>
+                  <p style={{ color: "var(--text-muted)", marginBottom: 20 }}>Your cart is empty</p>
+                  <Link
+                    to="/products"
+                    onClick={() => dispatch(closeDrawer())}
+                    style={{
+                      display: "inline-flex", padding: "12px 28px", borderRadius: "var(--r-full)",
+                      background: "linear-gradient(135deg, var(--primary-dark), var(--primary))",
+                      color: "white", fontWeight: 700, fontSize: "0.95rem",
+                    }}
+                  >
                     Shop Now
                   </Link>
                 </div>
               )}
-              {!loading && cart?.items?.map((item) => (
+
+              {cart?.items?.map((item) => (
                 <CartItem key={item.id} item={item} />
               ))}
             </div>
 
             {/* Footer */}
             {cart?.items?.length > 0 && (
-              <div style={{ padding: 20, borderTop: "1px solid rgba(46,125,50,0.1)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-                  <span style={{ fontWeight: 600, fontSize: "1rem" }}>Subtotal</span>
+              <div style={{ padding: 20, borderTop: "1px solid var(--border-light)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: "1rem", color: "var(--text-primary)" }}>Subtotal</span>
                   <span className="price" style={{ fontSize: "1.1rem" }}>₹{cart.total}</span>
                 </div>
-                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 12 }}>
-                  Free shipping on orders above ₹500
+                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 14 }}>
+                  Free shipping on orders above ₹{shippingSettings.free_shipping_threshold} · ₹{shippingSettings.shipping_cost} otherwise
                 </p>
                 <Link
                   to="/checkout"
                   onClick={() => dispatch(closeDrawer())}
-                  className="btn-neu btn-primary"
-                  style={{ display: "flex", justifyContent: "center", width: "100%", borderRadius: "var(--r-full)", fontSize: "1rem" }}
+                  style={{
+                    display: "flex", justifyContent: "center", width: "100%",
+                    borderRadius: "var(--r-full)", fontSize: "1rem", padding: "13px",
+                    background: "linear-gradient(135deg, var(--primary-dark), var(--primary))",
+                    color: "white", fontWeight: 700, textDecoration: "none",
+                    boxShadow: "0 4px 12px rgba(46,125,50,0.3)",
+                  }}
                 >
                   Checkout →
                 </Link>
-                <Link to="/cart" onClick={() => dispatch(closeDrawer())} style={{ display: "block", textAlign: "center", marginTop: 12, color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                <Link
+                  to="/cart"
+                  onClick={() => dispatch(closeDrawer())}
+                  style={{ display: "block", textAlign: "center", marginTop: 12, color: "var(--text-muted)", fontSize: "0.9rem" }}
+                >
                   View full cart
                 </Link>
               </div>
