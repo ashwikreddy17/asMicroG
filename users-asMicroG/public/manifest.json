@@ -1,0 +1,14 @@
+{
+  "name": "ASMICROG – Eco-Friendly Shopping",
+  "short_name": "ASMICROG",
+  "description": "Your sustainable e-commerce destination",
+  "theme_color": "#2e7d32",
+  "background_color": "#e8f5e9",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "icons": [
+    { "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

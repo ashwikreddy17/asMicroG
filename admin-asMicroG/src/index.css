@@ -1,0 +1,98 @@
+/* ASMICROG Admin – Dark Green Neumorphism Theme */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #1a2b1a;
+  --bg-card: #1e321e;
+  --bg-surface: #223322;
+  --sidebar-bg: #162216;
+  --primary: #4caf50;
+  --primary-light: #66bb6a;
+  --primary-dark: #2e7d32;
+  --accent: #00e676;
+  --text-primary: #e8f5e9;
+  --text-secondary: #a5d6a7;
+  --text-muted: #6a9b6a;
+  --border: rgba(76,175,80,0.15);
+  --neu-raised: 4px 4px 8px rgba(0,0,0,0.4), -2px -2px 5px rgba(76,175,80,0.08);
+  --neu-inset: inset 3px 3px 6px rgba(0,0,0,0.4), inset -2px -2px 4px rgba(76,175,80,0.06);
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px; --r-full: 9999px;
+  --t-base: 0.2s ease;
+  --font: 'Inter', sans-serif;
+  --success: #4caf50; --error: #ef5350; --warning: #ff9800; --info: #42a5f5;
+  --sidebar-width: 240px;
+}
+
+html { font-size: 15px; }
+body { font-family: var(--font); background: var(--bg); color: var(--text-primary); -webkit-font-smoothing: antialiased; }
+h1,h2,h3,h4 { font-weight: 700; color: var(--text-primary); }
+a { color: var(--primary); text-decoration: none; }
+button, input, select, textarea { font-family: var(--font); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--primary-dark); border-radius: 4px; }
+
+.card-admin {
+  background: var(--bg-card);
+  border-radius: var(--r-lg);
+  box-shadow: var(--neu-raised);
+  border: 1px solid var(--border);
+}
+.input-admin {
+  width: 100%; padding: 10px 14px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  color: var(--text-primary); font-size: 0.9rem; outline: none;
+  transition: border-color var(--t-base);
+  box-shadow: var(--neu-inset); min-height: 40px;
+}
+.input-admin:focus { border-color: var(--primary); }
+.input-admin::placeholder { color: var(--text-muted); }
+
+.btn-admin {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 18px; border: none; cursor: pointer;
+  border-radius: var(--r-md); font-weight: 600; font-size: 0.88rem;
+  transition: all var(--t-base); min-height: 36px;
+  background: var(--bg-card); color: var(--text-primary);
+  box-shadow: var(--neu-raised);
+}
+.btn-admin:hover { background: var(--bg-surface); }
+.btn-primary-admin {
+  background: var(--primary-dark); color: #fff;
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.4);
+}
+.btn-primary-admin:hover { background: var(--primary); }
+.btn-danger-admin { background: rgba(239,83,80,0.15); color: var(--error); }
+.btn-danger-admin:hover { background: rgba(239,83,80,0.25); }
+
+.table-admin { width: 100%; border-collapse: collapse; }
+.table-admin th {
+  text-align: left; padding: 10px 14px; font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.table-admin td { padding: 12px 14px; border-bottom: 1px solid rgba(76,175,80,0.07); font-size: 0.9rem; vertical-align: middle; }
+.table-admin tr:last-child td { border-bottom: none; }
+.table-admin tr:hover td { background: var(--bg-surface); }
+
+.badge-admin { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: var(--r-full); font-size: 0.75rem; font-weight: 600; }
+.badge-success { background: rgba(76,175,80,0.15); color: var(--success); }
+.badge-error { background: rgba(239,83,80,0.15); color: var(--error); }
+.badge-warning { background: rgba(255,152,0,0.15); color: var(--warning); }
+.badge-info { background: rgba(66,165,245,0.15); color: var(--info); }
+
+.stat-card {
+  background: var(--bg-card); border-radius: var(--r-xl);
+  padding: 20px; border: 1px solid var(--border);
+  box-shadow: var(--neu-raised);
+}
+
+.spinner-admin {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
