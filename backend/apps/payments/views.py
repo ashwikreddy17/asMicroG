@@ -25,9 +25,12 @@ def create_razorpay_order(request):
     client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
     amount_paise = int(order.final_amount * 100)
 
-    rz_order = client.order.create(
-        {"amount": amount_paise, "currency": "INR", "receipt": order.order_number}
-    )
+    try:
+        rz_order = client.order.create(
+            {"amount": amount_paise, "currency": "INR", "receipt": order.order_number}
+        )
+    except Exception as e:
+        return Response({"error": f"Razorpay error: {str(e)}"}, status=status.HTTP_502_BAD_GATEWAY)
 
     payment, _ = Payment.objects.get_or_create(
         order=order,

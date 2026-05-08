@@ -81,7 +81,7 @@ class FeaturedProductsView(generics.ListAPIView):
         return (
             Product.objects.filter(is_active=True, is_featured=True)
             .select_related("category")
-            .prefetch_related("images")[:12]
+            .prefetch_related("images", "reviews")[:12]
         )
 
 

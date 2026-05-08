@@ -90,14 +90,20 @@ class Product(models.Model):
 
     @property
     def average_rating(self):
-        reviews = self.reviews.filter(is_approved=True)
-        if not reviews.exists():
+        try:
+            reviews = self.reviews.filter(is_approved=True)
+            if not reviews.exists():
+                return 0
+            return round(reviews.aggregate(avg=models.Avg("rating"))["avg"], 1)
+        except Exception:
             return 0
-        return round(reviews.aggregate(avg=models.Avg("rating"))["avg"], 1)
 
     @property
     def review_count(self):
-        return self.reviews.filter(is_approved=True).count()
+        try:
+            return self.reviews.filter(is_approved=True).count()
+        except Exception:
+            return 0
 
     def __str__(self):
         return self.name

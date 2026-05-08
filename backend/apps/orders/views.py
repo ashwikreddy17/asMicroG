@@ -1,5 +1,5 @@
 from rest_framework import generics, permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -284,6 +284,8 @@ def admin_update_return(request, pk):
 # ── Shipping Settings ─────────────────────────────────────────────
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
 def shipping_settings(request):
     s = ShippingSettings.get()
     return Response({
