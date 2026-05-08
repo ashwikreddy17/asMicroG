@@ -16,37 +16,40 @@ from apps.notifications.tasks import send_order_confirmation_email
 @permission_classes([permissions.IsAuthenticated])
 def create_razorpay_order(request):
     import razorpay
-    order_id = request.data.get("order_id")
-    order = get_object_or_404(Order, pk=order_id, user=request.user)
-
-    if order.payment_status == "paid":
-        return Response({"error": "Already paid."}, status=status.HTTP_400_BAD_REQUEST)
-
-    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-    amount_paise = int(order.final_amount * 100)
-
     try:
+        order_id = request.data.get("order_id")
+        if not order_id:
+            return Response({"error": "order_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        order = get_object_or_404(Order, pk=order_id, user=request.user)
+
+        if order.payment_status == "paid":
+            return Response({"error": "Already paid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        amount_paise = int(order.final_amount * 100)
+
         rz_order = client.order.create(
             {"amount": amount_paise, "currency": "INR", "receipt": order.order_number}
         )
+
+        payment, _ = Payment.objects.get_or_create(
+            order=order,
+            defaults={"user": request.user, "gateway": "razorpay", "amount": order.final_amount},
+        )
+        payment.gateway_order_id = rz_order["id"]
+        payment.raw_response = rz_order
+        payment.save()
+
+        return Response({
+            "razorpay_order_id": rz_order["id"],
+            "amount": amount_paise,
+            "currency": "INR",
+            "key": settings.RAZORPAY_KEY_ID,
+            "order_number": order.order_number,
+        })
     except Exception as e:
-        return Response({"error": f"Razorpay error: {str(e)}"}, status=status.HTTP_502_BAD_GATEWAY)
-
-    payment, _ = Payment.objects.get_or_create(
-        order=order,
-        defaults={"user": request.user, "gateway": "razorpay", "amount": order.final_amount},
-    )
-    payment.gateway_order_id = rz_order["id"]
-    payment.raw_response = rz_order
-    payment.save()
-
-    return Response({
-        "razorpay_order_id": rz_order["id"],
-        "amount": amount_paise,
-        "currency": "INR",
-        "key": settings.RAZORPAY_KEY_ID,
-        "order_number": order.order_number,
-    })
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
