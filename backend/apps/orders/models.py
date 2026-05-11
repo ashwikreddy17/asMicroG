@@ -121,8 +121,11 @@ class ShippingSettings(models.Model):
 
     @classmethod
     def get(cls):
-        obj, _ = cls.objects.get_or_create(pk=1)
-        return obj
+        try:
+            obj, _ = cls.objects.get_or_create(pk=1)
+            return obj
+        except Exception:
+            return cls(free_shipping_threshold=500, shipping_cost=50, first_order_free=False)
 
 
 class OrderStatusHistory(models.Model):
