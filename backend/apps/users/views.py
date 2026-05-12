@@ -1,8 +1,9 @@
 from rest_framework import generics, status, permissions
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from .serializers import (
     RegisterSerializer, UserProfileSerializer,
@@ -107,3 +108,48 @@ def unban_user(request, pk):
     user.is_active = True
     user.save()
     return Response({"detail": "User unbanned."})
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
+def firebase_login(request):
+    from .backends import get_firebase_app
+    from firebase_admin import auth as firebase_auth
+
+    id_token = request.data.get("id_token")
+    if not id_token:
+        return Response({"error": "id_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    app = get_firebase_app()
+    if not app:
+        return Response({"error": "Firebase not configured on server."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+    except Exception:
+        return Response({"error": "Invalid or expired Firebase token."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    uid = decoded.get("uid")
+    email = decoded.get("email", "")
+    name = decoded.get("name", "")
+
+    user, _ = User.objects.get_or_create(
+        firebase_uid=uid,
+        defaults={
+            "email": email,
+            "username": email or uid,
+            "first_name": name.split(" ")[0] if name else "",
+            "last_name": " ".join(name.split(" ")[1:]) if name else "",
+            "is_verified": decoded.get("email_verified", False),
+        },
+    )
+
+    if user.is_banned:
+        return Response({"error": "Account is suspended."}, status=status.HTTP_403_FORBIDDEN)
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+    })

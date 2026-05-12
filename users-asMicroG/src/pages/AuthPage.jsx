@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { setTokens, fetchProfile } from "../store/authSlice";
 import { loginWithBackend, registerWithBackend, loginWithGoogle } from "../services/authService";
+import api from "../services/api";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import toast from "react-hot-toast";
@@ -17,6 +18,24 @@ export default function AuthPage() {
   const navigate = useNavigate();
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await loginWithGoogle();
+      const idToken = await result.user.getIdToken();
+      const { data } = await api.post("/auth/firebase/", { id_token: idToken });
+      dispatch(setTokens(data));
+      await dispatch(fetchProfile());
+      toast.success("Welcome!");
+      navigate("/");
+    } catch (err) {
+      const msg = err.response?.data?.error || "Google sign-in failed. Please try again.";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -130,7 +149,7 @@ export default function AuthPage() {
           <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>or</span>
           <div className="divider" style={{ flex: 1, margin: 0 }} />
         </div>
-        <Button fullWidth onClick={loginWithGoogle} style={{ marginTop: 12 }}>
+        <Button fullWidth onClick={handleGoogleLogin} loading={loading} style={{ marginTop: 12 }}>
           <span style={{ fontSize: 18 }}>G</span> Continue with Google
         </Button>
       </motion.div>

@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
-import { selectCart, selectShipping } from "../store/cartSlice";
-import { createOrder, validateCoupon, createRazorpayOrder, verifyRazorpayPayment } from "../services/orderService";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { selectCart, selectShipping, fetchCart } from "../store/cartSlice";
+import { createOrder, validateCoupon, createRazorpayOrder, verifyRazorpayPayment, createStripeIntent } from "../services/orderService";
 import api from "../services/api";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import toast from "react-hot-toast";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
 
 const STEPS = ["Address", "Order Summary", "Payment"];
 
@@ -28,8 +32,52 @@ function Step({ active, done, num, label }) {
   );
 }
 
+function StripeCheckoutForm({ orderId, total, onSuccess, onCancel }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: `${window.location.origin}/orders/${orderId}` },
+        redirect: "if_required",
+      });
+      if (error) {
+        toast.error(error.message || "Payment failed.");
+        setProcessing(false);
+      } else {
+        toast.success("Payment successful!");
+        onSuccess();
+      }
+    } catch {
+      toast.error("Payment failed. Please try again.");
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="neu-raised" style={{ padding: 24, marginBottom: 20 }}>
+        <PaymentElement />
+      </div>
+      <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+        <Button fullWidth onClick={onCancel} type="button">← Cancel</Button>
+        <Button variant="primary" fullWidth loading={processing} type="submit">
+          Pay ₹{total.toFixed(2)}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const user = useSelector((s) => s.auth.user);
   const cart = useSelector(selectCart);
   const shippingSettings = useSelector(selectShipping);
@@ -40,7 +88,7 @@ export default function CheckoutPage() {
   const [discount, setDiscount] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [loading, setLoading] = useState(false);
-  const [order, setOrder] = useState(null);
+  const [stripeData, setStripeData] = useState(null); // { clientSecret, orderId }
 
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
@@ -73,15 +121,14 @@ export default function CheckoutPage() {
     if (!selectedAddress) { toast.error("Please select a delivery address."); return; }
     setLoading(true);
     try {
-      const { data: createdOrder } = await createOrder({
+      const { data: currentOrder } = await createOrder({
         shipping_address_id: selectedAddress,
         payment_method: paymentMethod,
         coupon_code: discount ? coupon : "",
       });
-      setOrder(createdOrder);
 
       if (paymentMethod === "razorpay") {
-        const { data: rz } = await createRazorpayOrder(createdOrder.id);
+        const { data: rz } = await createRazorpayOrder(currentOrder.id);
         const rzOptions = {
           key: rz.key,
           amount: rz.amount,
@@ -92,11 +139,19 @@ export default function CheckoutPage() {
           handler: async (response) => {
             try {
               await verifyRazorpayPayment(response);
+              dispatch(fetchCart());
               toast.success("Payment successful!");
-              navigate(`/orders/${createdOrder.id}`);
+              navigate(`/orders/${currentOrder.id}`);
             } catch {
-              toast.error("Payment verification failed.");
+              toast.error("Payment verification failed. Your cart is saved — try again.");
+              navigate("/cart");
             }
+          },
+          modal: {
+            ondismiss: () => {
+              toast("Payment cancelled. Your cart is saved.", { icon: "ℹ️" });
+              navigate("/cart");
+            },
           },
           theme: { color: "#2e7d32" },
           prefill: { email: user?.email, contact: user?.phone },
@@ -105,15 +160,53 @@ export default function CheckoutPage() {
         rzScript.src = "https://checkout.razorpay.com/v1/checkout.js";
         rzScript.onload = () => new window.Razorpay(rzOptions).open();
         document.body.appendChild(rzScript);
+
+      } else if (paymentMethod === "stripe") {
+        const { data: intent } = await createStripeIntent(currentOrder.id);
+        setStripeData({ clientSecret: intent.client_secret, orderId: currentOrder.id });
+
       } else {
-        navigate(`/orders/${createdOrder.id}`);
+        // COD — backend cleared cart already
+        dispatch(fetchCart());
+        navigate(`/orders/${currentOrder.id}`);
       }
     } catch (err) {
-      toast.error(err.response?.data?.errors?.error || "Failed to place order.");
+      const msg = err.response?.data?.error || err.response?.data?.errors?.error || "Something went wrong. Please try again.";
+      toast.error(msg);
+      navigate("/cart");
     } finally {
       setLoading(false);
     }
   };
+
+  // Stripe payment screen
+  if (stripeData) {
+    return (
+      <main className="main-content">
+        <div className="container" style={{ padding: "24px 16px 48px", maxWidth: 560 }}>
+          <h1 style={{ marginBottom: 8 }}>Complete Payment</h1>
+          <p style={{ color: "var(--text-muted)", marginBottom: 28 }}>Total: <strong>₹{total.toFixed(2)}</strong></p>
+          <Elements
+            stripe={stripePromise}
+            options={{ clientSecret: stripeData.clientSecret, appearance: { theme: "stripe" } }}
+          >
+            <StripeCheckoutForm
+              orderId={stripeData.orderId}
+              total={total}
+              onSuccess={() => {
+                dispatch(fetchCart());
+                navigate(`/orders/${stripeData.orderId}`);
+              }}
+              onCancel={() => {
+                setStripeData(null);
+                navigate("/cart");
+              }}
+            />
+          </Elements>
+        </div>
+      </main>
+    );
+  }
 
   if (!cart?.items?.length) {
     return (
@@ -129,7 +222,6 @@ export default function CheckoutPage() {
       <div className="container" style={{ padding: "24px 16px 48px", maxWidth: 860 }}>
         <h1 style={{ marginBottom: 28 }}>Checkout</h1>
 
-        {/* Step indicator */}
         <div style={{ display: "flex", alignItems: "center", marginBottom: 36 }}>
           {STEPS.map((label, i) => (
             <div key={label} style={{ display: "flex", alignItems: "center", flex: 1 }}>
@@ -195,13 +287,11 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Coupon */}
                 <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
                   <Input placeholder="Enter coupon code" value={coupon} onChange={(e) => setCoupon(e.target.value)} icon="🎟" />
                   <Button onClick={applyCoupon} disabled={!coupon.trim()} style={{ flexShrink: 0 }}>Apply</Button>
                 </div>
 
-                {/* Totals */}
                 <div className="neu-raised" style={{ padding: 20 }}>
                   {[
                     ["Subtotal", `₹${subtotal.toFixed(2)}`],

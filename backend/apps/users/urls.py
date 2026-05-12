@@ -4,12 +4,14 @@ from .views import (
     RegisterView, LoginView, ProfileView, ChangePasswordView,
     AddressListCreateView, AddressDetailView,
     AdminUserListView, AdminUserDetailView, ban_user, unban_user,
+    firebase_login,
 )
 
 urlpatterns = [
     # Auth
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
+    path("firebase/", firebase_login, name="firebase_login"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("logout/", TokenBlacklistView.as_view(), name="logout"),
 
