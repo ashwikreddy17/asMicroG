@@ -25,11 +25,13 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\/api\/products\/.*/i,
-            handler: "StaleWhileRevalidate",
+            urlPattern: /^https:\/\/.*\/api\/.*/i,
+            handler: "NetworkFirst",
             options: {
-              cacheName: "products-cache",
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 },
+              cacheName: "api-cache",
+              networkTimeoutSeconds: 10,
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 5 },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],

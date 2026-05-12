@@ -76,12 +76,14 @@ class ProductDetailView(generics.RetrieveAPIView):
 class FeaturedProductsView(generics.ListAPIView):
     serializer_class = ProductListSerializer
     permission_classes = [permissions.AllowAny]
+    pagination_class = None
 
     def get_queryset(self):
         return (
             Product.objects.filter(is_active=True, is_featured=True)
             .select_related("category")
-            .prefetch_related("images", "reviews")[:12]
+            .prefetch_related("images", "reviews")
+            .order_by("-created_at")[:12]
         )
 
 
