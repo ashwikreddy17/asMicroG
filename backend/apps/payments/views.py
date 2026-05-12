@@ -1,5 +1,6 @@
 import hmac
 import hashlib
+import logging
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -11,12 +12,15 @@ from .models import Payment
 from apps.orders.models import Order, OrderStatusHistory
 from apps.notifications.tasks import send_order_confirmation_email
 
+logger = logging.getLogger(__name__)
+
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def create_razorpay_order(request):
-    import razorpay
     try:
+        import razorpay
+
         order_id = request.data.get("order_id")
         if not order_id:
             return Response({"error": "order_id is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -26,7 +30,12 @@ def create_razorpay_order(request):
         if order.payment_status == "paid":
             return Response({"error": "Already paid."}, status=status.HTTP_400_BAD_REQUEST)
 
-        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        key_id = getattr(settings, "RAZORPAY_KEY_ID", "")
+        key_secret = getattr(settings, "RAZORPAY_KEY_SECRET", "")
+        if not key_id or not key_secret:
+            return Response({"error": "Razorpay is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        client = razorpay.Client(auth=(key_id, key_secret))
         amount_paise = int(order.final_amount * 100)
 
         rz_order = client.order.create(
@@ -45,10 +54,11 @@ def create_razorpay_order(request):
             "razorpay_order_id": rz_order["id"],
             "amount": amount_paise,
             "currency": "INR",
-            "key": settings.RAZORPAY_KEY_ID,
+            "key": key_id,
             "order_number": order.order_number,
         })
     except Exception as e:
+        logger.exception("create_razorpay_order failed: %s", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -87,7 +97,10 @@ def verify_razorpay_payment(request):
     order.save()
 
     OrderStatusHistory.objects.create(order=order, status="processing", note="Payment confirmed.")
-    send_order_confirmation_email.delay(order.id)
+    try:
+        send_order_confirmation_email.delay(order.id)
+    except Exception:
+        pass
 
     return Response({"detail": "Payment verified.", "order_number": order.order_number})
 
