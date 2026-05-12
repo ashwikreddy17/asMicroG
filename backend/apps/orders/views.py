@@ -62,6 +62,16 @@ def create_order(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    payment_method = data["payment_method"]
+
+    # Cancel previous pending unpaid online-payment orders so stock isn't double-deducted on retry
+    if payment_method != "cod":
+        Order.objects.filter(
+            user=request.user,
+            payment_status="pending",
+            status="pending",
+        ).exclude(payment_method="cod").update(status="cancelled")
+
     with transaction.atomic():
         subtotal = sum(item.subtotal for item in cart_items)
         discount = 0
@@ -103,7 +113,7 @@ def create_order(request):
                 "postal_code": address.postal_code,
                 "country": address.country,
             },
-            payment_method=data["payment_method"],
+            payment_method=payment_method,
             coupon=coupon_obj,
             notes=data.get("notes", ""),
         )
@@ -118,20 +128,21 @@ def create_order(request):
                 product_name=item.product.name,
                 product_sku=item.variant.sku if item.variant else item.product.sku,
             )
-            if item.variant:
-                item.variant.stock -= item.quantity
-                item.variant.save()
-            else:
-                item.product.stock -= item.quantity
-                item.product.save()
 
         OrderStatusHistory.objects.create(order=order, status="pending", note="Order placed.")
-        cart_items.delete()
 
-    try:
-        send_order_confirmation_email.delay(order.id)
-    except Exception:
-        pass
+        # For COD: deduct stock and clear cart immediately (no payment gateway involved).
+        # For Razorpay/Stripe: defer until payment is confirmed so cart survives on failure.
+        if payment_method == "cod":
+            for item in cart_items:
+                if item.variant:
+                    item.variant.stock -= item.quantity
+                    item.variant.save()
+                else:
+                    item.product.stock -= item.quantity
+                    item.product.save()
+            cart_items.delete()
+
     return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 

@@ -10,7 +10,26 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import Payment
 from apps.orders.models import Order, OrderStatusHistory
+from apps.cart.models import Cart, CartItem
 from apps.notifications.tasks import send_order_confirmation_email
+
+
+def _confirm_order_stock_and_cart(order):
+    """Deduct stock for each order item and clear the user's cart. Called after payment is confirmed."""
+    from django.db import transaction
+    with transaction.atomic():
+        for order_item in order.items.select_related("product", "variant").all():
+            if order_item.variant:
+                order_item.variant.stock -= order_item.quantity
+                order_item.variant.save(update_fields=["stock"])
+            else:
+                order_item.product.stock -= order_item.quantity
+                order_item.product.save(update_fields=["stock"])
+        try:
+            cart = Cart.objects.get(user=order.user)
+            CartItem.objects.filter(cart=cart).delete()
+        except Cart.DoesNotExist:
+            pass
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +115,7 @@ def verify_razorpay_payment(request):
     order.status = "processing"
     order.save()
 
+    _confirm_order_stock_and_cart(order)
     OrderStatusHistory.objects.create(order=order, status="processing", note="Payment confirmed.")
     try:
         send_order_confirmation_email.delay(order.id)
@@ -156,8 +176,12 @@ def stripe_webhook(request):
             order.payment_status = "paid"
             order.status = "processing"
             order.save()
+            _confirm_order_stock_and_cart(order)
             OrderStatusHistory.objects.create(order=order, status="processing", note="Stripe payment succeeded.")
-            send_order_confirmation_email.delay(order.id)
+            try:
+                send_order_confirmation_email.delay(order.id)
+            except Exception:
+                pass
         except Payment.DoesNotExist:
             pass
 
