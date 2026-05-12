@@ -32,7 +32,7 @@ Pillow==10.4.0
 
 # Payments
 stripe==10.12.0
-razorpay==1.4.2
+# razorpay library removed — API called directly via requests to avoid pkg_resources issues
 
 # SMS
 twilio==9.3.3

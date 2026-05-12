@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 @permission_classes([permissions.IsAuthenticated])
 def create_razorpay_order(request):
     try:
-        import razorpay
+        import requests as http_requests
 
         order_id = request.data.get("order_id")
         if not order_id:
@@ -54,12 +54,15 @@ def create_razorpay_order(request):
         if not key_id or not key_secret:
             return Response({"error": "Razorpay is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        client = razorpay.Client(auth=(key_id, key_secret))
         amount_paise = int(order.final_amount * 100)
-
-        rz_order = client.order.create(
-            {"amount": amount_paise, "currency": "INR", "receipt": order.order_number}
+        rz_response = http_requests.post(
+            "https://api.razorpay.com/v1/orders",
+            auth=(key_id, key_secret),
+            json={"amount": amount_paise, "currency": "INR", "receipt": order.order_number},
+            timeout=15,
         )
+        rz_response.raise_for_status()
+        rz_order = rz_response.json()
 
         payment, _ = Payment.objects.get_or_create(
             order=order,
