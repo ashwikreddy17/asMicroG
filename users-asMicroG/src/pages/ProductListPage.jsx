@@ -1,10 +1,66 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getProducts, getCategories } from "../services/productService";
+import { getProducts, getCategories, getBanners } from "../services/productService";
 import ProductCard from "../components/products/ProductCard";
 import Spinner from "../components/ui/Spinner";
 import Button from "../components/ui/Button";
+
+function MidBanner({ banner }) {
+  const navigate = useNavigate();
+  return (
+    <div
+      style={{
+        gridColumn: "1 / -1",
+        borderRadius: "var(--r-xl)",
+        overflow: "hidden",
+        boxShadow: "var(--shadow-md)",
+        position: "relative",
+        cursor: banner.link ? "pointer" : "default",
+        marginBottom: 8,
+      }}
+      onClick={() => banner.link && navigate(banner.link)}
+    >
+      <div style={{ position: "relative", aspectRatio: banner.aspect_ratio || "16/9", width: "100%" }}>
+        {banner.image ? (
+          <img
+            src={banner.image}
+            alt={banner.title}
+            style={{ width: "100%", height: "100%", objectFit: banner.object_fit || "cover", display: "block" }}
+          />
+        ) : (
+          <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, var(--primary-dark), var(--primary))" }} />
+        )}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(100deg, rgba(0,30,0,0.6) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)",
+          display: "flex", flexDirection: "column", justifyContent: "center",
+          padding: "clamp(16px,4%,48px) clamp(20px,5%,56px)",
+        }}>
+          {banner.title && (
+            <h3 style={{ color: "white", fontSize: "clamp(1.1rem,3vw,2rem)", fontWeight: 800, marginBottom: 6, lineHeight: 1.2 }}>
+              {banner.title}
+            </h3>
+          )}
+          {banner.subtitle && (
+            <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "clamp(0.82rem,1.5vw,1rem)", marginBottom: 16 }}>
+              {banner.subtitle}
+            </p>
+          )}
+          {banner.link && (
+            <span style={{
+              display: "inline-block", background: "white", color: "var(--primary-dark)",
+              fontWeight: 700, padding: "10px 22px", borderRadius: "var(--r-full)",
+              fontSize: "0.88rem", alignSelf: "flex-start",
+            }}>
+              {banner.button_text || "Shop Now"} →
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function FilterSidebar({ filters, setFilters, categories, onClose }) {
   const [localFilters, setLocalFilters] = useState(filters);
@@ -92,6 +148,7 @@ export default function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [midBanners, setMidBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
@@ -121,7 +178,10 @@ export default function ProductListPage() {
   }, [filters]);
 
   useEffect(() => { load(1); }, [load]);
-  useEffect(() => { getCategories().then(({ data }) => setCategories(Array.isArray(data) ? data : (data.results ?? []))); }, []);
+  useEffect(() => {
+    getCategories().then(({ data }) => setCategories(Array.isArray(data) ? data : (data.results ?? [])));
+    getBanners("mid").then(({ data }) => setMidBanners(Array.isArray(data) ? data : [])).catch(() => {});
+  }, []);
 
   const sortOptions = [
     { label: "Newest", value: "-created_at" },
@@ -176,7 +236,17 @@ export default function ProductListPage() {
               </div>
             ) : (
               <motion.div className="grid-products" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                {products.map((p) => <ProductCard key={p.id} product={p} />)}
+                {(() => {
+                  const items = [];
+                  products.forEach((p, i) => {
+                    items.push(<ProductCard key={p.id} product={p} />);
+                    if (midBanners.length > 0 && (i + 1) % 8 === 0 && i !== products.length - 1) {
+                      const b = midBanners[Math.floor(i / 8) % midBanners.length];
+                      items.push(<MidBanner key={`mid-banner-${i}`} banner={b} />);
+                    }
+                  });
+                  return items;
+                })()}
               </motion.div>
             )}
 
