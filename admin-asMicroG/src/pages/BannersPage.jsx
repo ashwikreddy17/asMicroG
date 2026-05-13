@@ -64,7 +64,10 @@ export default function BannersPage() {
     setSaving(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => { if (v !== "" && v !== null) fd.append(k, v); });
+      Object.entries(form).forEach(([k, v]) => {
+        if (k === "image") return; // never send URL string; real file handled below
+        if (v !== "" && v !== null) fd.append(k, v);
+      });
       if (imageFile) fd.append("image", imageFile);
       const config = { headers: { "Content-Type": "multipart/form-data" } };
       if (editing) {
