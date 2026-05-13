@@ -1,7 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from django.core.cache import cache
-from django.conf import settings
 from django.utils import timezone
 from .models import Banner
 from .serializers import BannerSerializer
@@ -24,12 +23,8 @@ class BannerListView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         position = request.query_params.get("position", "hero")
-        cache_key = f"banners_{position}"
-        data = cache.get(cache_key)
-        if data is None:
-            qs = self.get_queryset().filter(position=position)
-            data = BannerSerializer(qs, many=True).data
-            cache.set(cache_key, data, settings.CACHE_TTL_BANNER)
+        qs = self.get_queryset().filter(position=position)
+        data = BannerSerializer(qs, many=True, context={"request": request}).data
         return Response(data)
 
 
